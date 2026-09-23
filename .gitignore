@@ -1,0 +1,70 @@
+# Data — large, not code, and not something to version in git
+# (root-anchored: configs/stgcn/ablebody2_wattkg/ etc. are our own config *code*, not data,
+# and must NOT be excluded by these)
+*.pkl
+/ablebody2_wattkg/
+/prosthetic_wattkg/
+/data/
+
+# Training outputs — checkpoints (~16GB), logs, tensorboard etc.
+/work_dirs/
+
+# Everything else in configs/ is pyskl's own upstream benchmark config zoo (NTU/gym/etc,
+# hundreds of files) -- not part of this project's results. Only our own subdirectories
+# are kept; git needs each intermediate dir un-ignored too, not just the final target.
+/configs/*
+!/configs/stgcn/
+!/configs/ctrgcn/
+!/configs/posec3d/
+/configs/stgcn/*
+!/configs/stgcn/ablebody2_wattkg/
+!/configs/stgcn/prosthetic_wattkg/
+!/configs/stgcn/ablebody2_exact/
+/configs/ctrgcn/*
+!/configs/ctrgcn/ablebody2_wattkg/
+!/configs/ctrgcn/prosthetic_wattkg/
+/configs/posec3d/*
+!/configs/posec3d/ablebody2_wattkg/
+!/configs/posec3d/ablebody2_demo/
+
+# Training run stdout captures and misc scratch outputs, not source
+*.out
+clip_log.txt
+
+# Unrelated earlier work (video preprocessing pipeline) -- not part of this project's
+# skeleton -> energy-expenditure modeling progress
+/LMorel/
+/Labels/
+/verify_frames/
+check_*.py
+*clip_videos*
+*trim*videos*
+verify_output.py
+verify_trimmed_videos.py
+relabel*.py
+relabelling.ipynb
+merge_code_updated.py
+merged_HRNET.py
+run_clip_videos.py
+hrnet_demo*
+final_demographics_MANIFEST.md
+final_demographics_preview.png
+train_demo.ipynb
+evaluate_exact*.py
+test.py
+brunch_*
+average_mse.ipynb
+merge_updated.ipynb
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+venv/
+
+# OS/editor cruft
+.DS_Store
