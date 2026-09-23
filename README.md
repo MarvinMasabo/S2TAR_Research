@@ -96,13 +96,21 @@ Gait Metabolic Results/         # organized deliverables: per population, per mo
 
 ## Reproducing a result
 
+**Standard workflow — see [`PIPELINE.md`](PIPELINE.md) for the full walkthrough** (config
+anatomy, auto-resume, how to extend to a new model or dataset, and the pitfalls already hit
+once so they don't need re-discovering).
+
 ```bash
 # 1. Build the target pkl (able-bodied, all 3 methods)
 python build_method_pkls.py
 
-# 2. Train (regular pipeline)
+# 2. Train — auto-resumes on its own if interrupted, so it's safe to nohup and walk away
 bash train_stgcn_exact_100ep.sh          # or train_ctrgcn_exact_100ep.sh
 
-# 3. Or train + plot in one step (self-contained pipeline)
-python train_and_plot_gcn.py             # edit MODEL = 'STGCN' | 'CTRGCN' at the top
+# 3. Generate the train-vs-val plot + best-epoch train/val/test report
+python report_ctrgcn_ablebody.py         # or report_prosthetic.py, pointed at your run
 ```
+
+`train_and_plot_gcn.py` (train + plot in one file, no separate config) still exists as a
+portable reference/submission copy of the same pipeline — see the note at the end of
+`PIPELINE.md` for when to reach for it instead. It is not the tool to extend with new models.
