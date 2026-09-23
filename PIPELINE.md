@@ -1,8 +1,9 @@
 # The regular pipeline — the standard way to train and reproduce results
 
-This is the primary workflow for this project from here on. (`train_and_plot_gcn.py`, the
-self-contained single-file version, still exists as a reference/submission tool — see the
-end of this doc — but it is not the one to extend or run day to day.)
+This is the only workflow used in this project. An earlier single-file "self-contained"
+alternative (`train_and_plot_gcn.py`) was built to validate that this pipeline's results were
+reproducible, confirmed that they were, and has since been removed — everything below is the
+one path going forward.
 
 ## The three pieces, and how they fit together
 
@@ -96,7 +97,7 @@ bash train_stgcn_exact_100ep.sh
 ```
 - `--validate` — evaluate on val after every epoch (needed for `save_best` and the curve).
 - `--test-last` / `--test-best` — pyskl's own official test-set numbers, printed at the end, for a quick independent sanity check before the full `report_*.py` run.
-- **Auto-resume is automatic**: if `work_dir/latest.pth` already exists (e.g. the run was killed and restarted), `tools/train.py` picks it up and continues from there — no flag needed, nothing to remember. This is the main reason to prefer this pipeline over the self-contained one.
+- **Auto-resume is automatic**: if `work_dir/latest.pth` already exists (e.g. the run was killed and restarted), `tools/train.py` picks it up and continues from there — no flag needed, nothing to remember.
 
 Run it under `nohup ... &` (or tmux) so it survives a disconnect:
 ```bash
@@ -104,19 +105,29 @@ nohup bash train_stgcn_exact_100ep.sh > stgcn_run.out 2>&1 &
 ```
 
 ### 4. Generate the report + plot
-A separate, small script — e.g. `report_ctrgcn_ablebody.py` or `report_prosthetic.py` — does this, reusing the same functions every time (so every model/population is scored identically):
+A separate, small script — `report_stgcn_ablebody.py`, `report_ctrgcn_ablebody.py`, or
+`report_prosthetic.py` — does this. Every one of them **loads the real config file the run
+actually used** (`Config.fromfile(...)`), so a report can never drift out of sync with what
+was actually trained, and every one of them calls the same shared functions from `gcn_eval.py`
+so every model/population is scored identically:
 ```python
-tr = epoch_train_mse(logs)          # per-epoch train MSE, read from the log (no re-inference)
-vmse, vmae = epoch_val_metrics(logs)  # per-epoch val MSE/MAE, read from the log
-best_ep = min(vmae, key=vmae.get)   # lowest val MAE = "best epoch"
-# ... plot tr vs vmse across epochs (train_and_plot_gcn.py's plot_and_report, same code) ...
+cfg = Config.fromfile('configs/stgcn/ablebody2_wattkg/exact_100ep.py')  # the real config, not a copy
+logs = glob.glob(os.path.join(cfg.work_dir, '*.log'))
+
+tr = ge.epoch_train_mse(logs)            # per-epoch train MSE, read from the log (no re-inference)
+vmse, vmae = ge.epoch_val_metrics(logs)  # per-epoch val MSE/MAE, read from the log
+best_ep = min(vmae, key=vmae.get)        # lowest val MAE = "best epoch"
+ge.plot_train_vs_val(tr, vmse, vmae, best_ep, cfg.total_epochs, title, out_png)
+
 # then, ONE real inference pass, only at best_ep:
-model = build_model(cfg.model); load_checkpoint(model, f'epoch_{best_ep}.pth')
-for split in ['train','val','test']:
-    p, y = run_inference(model, build_eval_loader(cfg, split))
-    metrics(p, y)   # MAE, MSE, RMSE, r, R2
+model = build_model(cfg.model); load_checkpoint(model, f'{cfg.work_dir}/epoch_{best_ep}.pth')
+for split in ['train', 'val', 'test']:
+    p, y = ge.run_inference(model, ge.build_eval_loader(cfg, split))
+    ge.metrics(p, y)   # MAE, MSE, RMSE, r, R2
 ```
-To point this at a new run, you only ever change `WORK_DIR` and `ANN_FILE` — the functions themselves (`epoch_train_mse`, `epoch_val_metrics`, `run_inference`, `metrics`, `build_eval_loader`) are shared, unmodified, across every model and population already done in this project (see `train_and_plot_gcn.py`, which is where they're defined).
+To point this at a new run, write a new `report_<model>_<dataset>.py` that loads a different
+config path — the shared functions in `gcn_eval.py` (`epoch_train_mse`, `epoch_val_metrics`,
+`run_inference`, `metrics`, `build_eval_loader`, `plot_train_vs_val`) never need to change.
 
 ## Extending to a new model (e.g. SkateFormer)
 
@@ -128,7 +139,8 @@ To point this at a new run, you only ever change `WORK_DIR` and `ANN_FILE` — t
    - `work_dir` → a new, unique path.
 3. **Check the backbone's own defaults before trusting them** — CTR-GCN's `num_person` default (2, silently wrong for single-person data) and its own template's `lr=0.1` (silently unstable on a small regression set) both had to be caught and fixed by hand. Do a quick forward-pass smoke test (build the dataset, build the model, run one batch through it) before committing to a multi-hour training run.
 4. Write `train_<model>_<dataset>.sh` (copy an existing one, change the config path).
-5. Reuse `report_*.py`'s functions unchanged — just point `MODEL`/`ANN_FILE`/`WORK_DIR` at the new run.
+5. Copy an existing `report_*.py` and change only the `CONFIG` path it loads — every function
+   it calls comes from `gcn_eval.py` and needs no changes.
 
 ## Extending to a new population/dataset (e.g. combined able-bodied + prosthetic)
 
@@ -145,10 +157,3 @@ To point this at a new run, you only ever change `WORK_DIR` and `ANN_FILE` — t
 3. **CTR-GCN's `num_person` defaults to 2** (built for NTU's multi-person clips) and must be set to `1` for our single-person data, or the model crashes on the first real batch with a batchnorm channel mismatch.
 4. **A pkl pickled under numpy≥2.0 won't load under this project's numpy<2.0 training env** (`No module named 'numpy._core'`). Fix: alias `numpy._core` to `numpy.core` before unpickling (see the top of `build_prosthetic_pkl.py` / `merge_prosthetic_sources.py`) — then re-save it, and the output is natively loadable with no special handling downstream.
 5. **A DataLoader with `workers_per_gpu>0` re-imports the launching script in each worker process.** Any script used as a direct training entry point needs its real work behind `if __name__ == '__main__':` — a script without that guard will re-run its own setup code (including re-binding a distributed process group) once per worker and hang or crash.
-
-## Where `train_and_plot_gcn.py` still fits in
-
-Kept as a **portable, single-file reference** — useful for handing the whole pipeline to
-someone outside this environment, or for a submission that needs one runnable file with no
-external config. It has no auto-resume and duplicates logic that must be kept in sync with the
-config files by hand, so it is not the tool to extend with new models or datasets going forward.
