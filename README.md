@@ -8,14 +8,16 @@ prosthetic-limb walking, using graph convolutional networks (STGCN, CTR-GCN) fro
 
 - **Able-bodied**: `AbleBody2_full.pkl` — 22 participants, 5,874 clips, 3 walking speeds
   (Slower/Preferred/Faster), 3 camera angles (Back/Left/Right).
-- **Prosthetic**: `final_demographics.pkl` (source: TAMUSA / "PRO_A&M") — 3 participants,
-  785 clips, same modality/angle structure. A second prosthetic source ("PRO_THAI") is
-  expected but not yet available in this project.
+- **Prosthetic**: `prosthetic_wattkg/exact_merged.pkl`, built by `merge_prosthetic_sources.py` from
+  Siem's TAMUSA and Thailand keypoint files plus the windowed label CSVs — 14 participants
+  (3 TAMUSA + 11 Thailand), 3,239 clips. 432 clips without an Exact Windowing value are
+  excluded (all of EE01, EE08 Slower/Faster, 14 single windows).
 - **Label**: energy expenditure via the "Exact Windowing" method (the method the team
   settled on after comparing Exact / Nearest / Windowing-Avg-Drop across all models),
   divided by each subject's body weight → **Watts/kg**.
-- **Split**: 80/10/10 train/val/test, stratified by participant, modality, and camera
-  angle — verified for both cohorts with `verify_prosthetic_split.py`.
+- **Split**: 80/10/10 train/val/test, time-ordered within each participant × speed (first 80% of
+  10-s windows train, next 10% val, last 10% test); all camera views of a window stay in the
+  same split. Verified with `verify_prosthetic_split.py`.
 
 ## Models
 
@@ -38,22 +40,22 @@ Only three things differ between their configs (everything else — data, optimi
 
 - Optimizer: SGD, lr 0.01, momentum 0.9, nesterov, weight decay 1e-4, cosine annealing, 100 epochs.
 - Validated every epoch (`--validate`); the epoch with the **lowest validation MAE** is selected as "best" (not the last epoch).
-- Final reported numbers (MAE/MSE/RMSE/Pearson r/R²) come from loading *only* that best-epoch checkpoint and running a real forward pass over train/val/test — not from the training log.
+- Final reported numbers (MAE/MSE/RMSE/MRE/Pearson r/R²) come from loading *only* that best-epoch checkpoint and running a real forward pass over train/val/test — not from the training log.
 - Confirmed for STGCN and CTR-GCN: after the "best" epoch, validation performance plateaus (or gets noisier) while training performance keeps improving — a healthy convergence signature, not harmful overfitting (see the `*_curve*.png` plots).
 
 ## Results (Exact Windowing, Watts/kg, test split)
 
-| Population | Model | Best epoch | Test MAE | Test MSE | Test RMSE | Test r | Test R² |
-|---|---|--:|--:|--:|--:|--:|--:|
-| Able-bodied | STGCN | 33 | 0.390 | 0.266 | 0.516 | 0.950 | 0.900 |
-| Able-bodied | CTR-GCN | 16 | 0.376 | 0.243 | 0.493 | 0.954 | 0.908 |
-| Prosthetic | STGCN | 59 | 0.221 | 0.079 | 0.281 | 0.885 | 0.755 |
-| Prosthetic | CTR-GCN | 39 | 0.209 | 0.074 | 0.272 | 0.886 | 0.769 |
+| Population | Model | Best epoch | Test MAE | Test MSE | Test RMSE | Test MRE | Test r | Test R² |
+|---|---|--:|--:|--:|--:|--:|--:|--:|
+| Able-bodied | STGCN | 33 | 0.390 | 0.266 | 0.516 | 9.2% | 0.950 | 0.900 |
+| Able-bodied | CTR-GCN | 16 | 0.376 | 0.243 | 0.493 | 8.6% | 0.954 | 0.908 |
+| Prosthetic (TAMUSA + Thailand) | STGCN | 75 | 0.216 | 0.073 | 0.270 | 6.2% | 0.910 | 0.828 |
+| Prosthetic (TAMUSA + Thailand) | CTR-GCN | 38 | 0.232 | 0.079 | 0.281 | 6.7% | 0.904 | 0.813 |
 
-**Reading it:** CTR-GCN and STGCN perform comparably on able-bodied data; CTR-GCN edges out
-STGCN on both cohorts. Prosthetic MAE looks smaller in absolute terms, but that's expected,
+**Reading it:** the two models perform comparably; CTR-GCN edges out STGCN on able-bodied data,
+STGCN edges out CTR-GCN on prosthetic data. Prosthetic MAE looks smaller in absolute terms, but that's expected,
 not "better" — prosthetic users walk more slowly on average, so the label range itself is
-narrower (~2.3–5.4 W/kg vs. ~1.4–12.7 W/kg for able-bodied), which mechanically shrinks
+narrower (1.9–5.6 W/kg vs. ~1.4–12.7 W/kg for able-bodied), which mechanically shrinks
 MAE/RMSE. Relative error (MRE) is the fairer way to compare across populations.
 
 ## Repository layout
@@ -61,7 +63,7 @@ MAE/RMSE. Relative error (MRE) is the fairer way to compare across populations.
 ```
 build_method_pkls.py            # able-bodied: build per-method (nearest/exact/windowing) W/kg pkls
 build_prosthetic_pkl.py         # prosthetic (single source): build the exact-windowing W/kg pkl
-merge_prosthetic_sources.py     # union multiple prosthetic sources' (already-split) data
+merge_prosthetic_sources.py     # merge TAMUSA + Thailand, relabel to Exact Windowing W/kg, split by moment
 verify_prosthetic_split.py      # check a pkl's 80/10/10 split is stratified by participant/modality/angle
 
 configs/stgcn/…, configs/ctrgcn/…   # per-model, per-population, per-method training configs

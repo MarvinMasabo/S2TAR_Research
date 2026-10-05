@@ -1,6 +1,6 @@
 """Shared evaluation utilities for the regular pipeline's report step (see PIPELINE.md, step 4).
 
-Used by report_stgcn_exact_100ep.py, report_ctrgcn_ablebody.py, and report_prosthetic.py.
+Used by report_stgcn_ablebody.py, report_ctrgcn_ablebody.py, and report_prosthetic.py.
 Every one of them loads the *actual* config file a training run used
 (mmcv.Config.fromfile(...)) and passes it to these functions -- there is no separate,
 hand-maintained copy of the model/data/optimizer setup here, so a report can never drift
@@ -74,6 +74,7 @@ def metrics(p, y):
     ss_res, ss_tot = np.sum(e ** 2), np.sum((y - y.mean()) ** 2)
     mse = float(np.mean(e ** 2))
     return dict(MAE=float(np.mean(np.abs(e))), MSE=mse, RMSE=float(np.sqrt(mse)),
+                MRE=float(np.mean(np.abs(e) / np.abs(y))),
                 r=float(np.corrcoef(p, y)[0, 1]), R2=float(1 - ss_res / ss_tot))
 
 

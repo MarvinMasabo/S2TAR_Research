@@ -33,7 +33,7 @@ as-is.
 ```bash
 python build_method_pkls.py        # able-bodied: nearest/exact/windowing, Watts/kg
 python build_prosthetic_pkl.py     # prosthetic (one source), Watts/kg
-python merge_prosthetic_sources.py # union multiple prosthetic sources' splits
+python merge_prosthetic_sources.py # merge TAMUSA + Thailand prosthetic data, split by moment
 ```
 Each of these writes one pkl with `annotations` (clips + labels + metadata) and `split`
 (`train`/`val`/`test` frame_dir lists). Verify a new split with `verify_prosthetic_split.py`
@@ -144,8 +144,8 @@ config path — the shared functions in `gcn_eval.py` (`epoch_train_mse`, `epoch
 
 ## Extending to a new population/dataset (e.g. combined able-bodied + prosthetic)
 
-1. Build the merged pkl (`merge_prosthetic_sources.py` is the pattern — union each source's own
-   already-verified split rather than re-deriving one).
+1. Build the merged pkl (`merge_prosthetic_sources.py` is the pattern). Split by **moment**: every camera
+   view of the same time window must land in the same split, or test answers leak into training.
 2. Verify it (`verify_prosthetic_split.py`).
 3. Clone an existing config, point `ann_file` at the new pkl, give it a new `work_dir`.
 4. Train, resume-safe, exactly as in step 3 above.
