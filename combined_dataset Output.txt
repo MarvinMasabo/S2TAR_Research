@@ -1,0 +1,60 @@
+============================================================
+  Able-bodied + prosthetic — building ONE combined pickle
+============================================================
+[able]    5874 clips from exact.pkl; camera angle from {'trim sheet': 5874}
+[pros]    3239 clips from exact_merged.pkl
+
+[merge]   9113 clips: train=7324 (80%)  val=912 (10%)  test=877 (10%)
+
+[verify]  checks
+  clip names unique ................ True
+  every clip in exactly one split .. True
+  moments split across sets ........ 0 of 3128
+  keypoints all float32, 1 person .. True
+  labels all finite ................ True
+
+[labels]  W/kg by population and split (mean / sd / min-max)
+  able-bodied  train n= 4710  4.58 / 1.62 / 1.35-12.58
+  able-bodied  val   n=  582  4.63 / 1.61 / 1.78-12.73
+  able-bodied  test  n=  582  4.55 / 1.63 / 1.91-12.24
+  prosthetic   train n= 2614  3.57 / 0.68 / 2.00-5.60
+  prosthetic   val   n=  330  3.60 / 0.67 / 1.90-5.10
+  prosthetic   test  n=  295  3.59 / 0.65 / 2.10-5.40
+
+[split]   By Population:
+  Value                      Train    Val   Test   Total     train/val/test %
+  able-bodied                 4710    582    582    5874             80/10/10
+  prosthetic                  2614    330    295    3239              81/10/9
+
+[split]   By Site:
+  Value                      Train    Val   Test   Total     train/val/test %
+  AbleBody2                   4710    582    582    5874             80/10/10
+  TAMUSA                       630     78     77     785             80/10/10
+  Thailand                    1984    252    218    2454              81/10/9
+
+[split]   By Speed:
+  Value                      Train    Val   Test   Total     train/val/test %
+  Faster                      2423    300    290    3013             80/10/10
+  Preferred                   2508    315    303    3126             80/10/10
+  Slower                      2393    297    284    2974             80/10/10
+
+[split]   By Angle:
+  Value                      Train    Val   Test   Total     train/val/test %
+  Back                        2434    303    285    3022              81/10/9
+  Left                        2434    303    289    3026             80/10/10
+  Right                       2386    297    294    2977             80/10/10
+  Unknown                       70      9      9      88             80/10/10
+
+[split]   By Population x speed:
+  Value                      Train    Val   Test   Total     train/val/test %
+  able-bodied Faster          1539    189    189    1917             80/10/10
+  able-bodied Preferred       1584    198    198    1980             80/10/10
+  able-bodied Slower          1587    195    195    1977             80/10/10
+  prosthetic Faster            884    111    101    1096              81/10/9
+  prosthetic Preferred         924    117    105    1146              81/10/9
+  prosthetic Slower            806    102     89     997              81/10/9
+
+[output]  Saved -> /home/students/mmasabo1/summer26Research/combined_wattkg/exact_combined.pkl
+          36 participants, fields: ['frame_dir', 'label', 'img_shape', 'total_frames', 'num_person_raw', 'population', 'source', 'subject', 'modality', 'angle', 'moment', 'heart_rate', 'age', 'gender', 'height', 'weight']
+
+Done.
