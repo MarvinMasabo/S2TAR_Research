@@ -8,7 +8,8 @@ populations.
             the combined test set is exactly able-bodied test + prosthetic test.
   label   = unchanged: Exact Windowing energy / body weight (W/kg) in both inputs.
   fields  = one shared set for every clip (training fields + population, source, subject, speed,
-            angle, moment, age, gender, height, weight, Exact Windowing heart rate).
+            angle, moment, demographics, all three windowing methods with their heart rates, and the
+            gas measurements), named as in AbleBody2_full.pkl.
 """
 import pickle
 import re
@@ -32,7 +33,17 @@ OUTPUT_PATH = ROOT / 'combined_wattkg' / 'exact_combined.pkl'
 
 SPLITS = ('train', 'val', 'test')
 TRAIN_FIELDS = ('frame_dir', 'label', 'img_shape', 'total_frames', 'num_person_raw', 'keypoint', 'keypoint_score')
-DEMO_FIELDS = ('age', 'gender', 'height', 'weight')
+# demographics + every windowing method + gas measurements: the same field names in both input files
+SHARED_FIELDS = ('name', 'file_number', 'gait', 'age', 'gender', 'height', 'weight',
+                 'watts', 'nearest_ee_watts', 'exact_windowing_energy_watts', 'windowing_drop_avg_energy_watts',
+                 'heart_rate', 'exact_windowing_hr', 'windowing_drop_avg_hr',
+                 'vo2_per_kg', 'vo2_stpd', 'vco2_stpd', 'rer', 'mets', 'energy_cal', 've_stpd')
+# AbleBody2_full.pkl's per-clip fields in its order, then the bookkeeping fields
+FIELD_ORDER = ['frame_dir', 'label', 'img_shape', 'total_frames', 'num_person_raw', 'keypoint', 'keypoint_score',
+               'name', 'file_number', 'gait', 'modality', 'age', 'gender', 'height', 'weight', 'watts', 'energy_cal',
+               'nearest_ee_watts', 'exact_windowing_energy_watts', 'windowing_drop_avg_energy_watts', 'heart_rate',
+               'exact_windowing_hr', 'windowing_drop_avg_hr', 'vo2_per_kg', 'rer', 've_stpd', 'mets', 'vo2_stpd',
+               'vco2_stpd', 'population', 'source', 'subject', 'angle', 'moment']
 
 
 def load(path):
@@ -78,7 +89,7 @@ def able_clips():
         c = {f: a[f] for f in TRAIN_FIELDS}
         c.update(population='able-bodied', source='AbleBody2', subject=a['name'], modality=a['modality'],
                  angle=angle, moment=f"AbleBody2|{a['name']}|{a['modality']}|{start:04d}",
-                 heart_rate=float(a['exact_windowing_hr']), **{f: float(a[f]) for f in DEMO_FIELDS})
+                 **{f: a.get(f) for f in SHARED_FIELDS})
         out.append(c)
     print(f'[able]    {len(out)} clips from {ABLE_PKL.name}; camera angle from {dict(sources)}')
     return out, d['split']
@@ -90,8 +101,7 @@ def pros_clips():
     for a in d['annotations']:
         c = {f: a[f] for f in TRAIN_FIELDS}
         c.update(population='prosthetic', source=a['source'], subject=a['subject'], modality=a['modality'],
-                 angle=a['angle'], moment=a['moment'], heart_rate=float(a['heart_rate']),
-                 **{f: float(a[f]) for f in DEMO_FIELDS})
+                 angle=a['angle'], moment=a['moment'], **{f: a.get(f) for f in SHARED_FIELDS})
         out.append(c)
     print(f'[pros]    {len(out)} clips from {PROS_PKL.name}')
     return out, d['split']
@@ -151,7 +161,7 @@ def main():
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_PATH, 'wb') as f:
-        pickle.dump(dict(split=split, annotations=ann, **split), f)
+        pickle.dump(dict(split=split, annotations=[{k: a[k] for k in FIELD_ORDER} for a in ann], **split), f)
     print(f'\n[output]  Saved -> {OUTPUT_PATH}')
     print(f'          {len({a["subject"] for a in ann})} participants, fields: '
           f'{[k for k in ann[0] if k not in ("keypoint", "keypoint_score")]}')

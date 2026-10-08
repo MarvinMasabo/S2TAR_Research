@@ -1,0 +1,5 @@
+Population,Model,separate_test_MAE,combined_test_MAE,change_pct,separate_test_MRE,combined_test_MRE
+Able Body,STGCN,0.3903,0.364,-6.7,0.0917,0.0836
+Able Body,CTRGCN,0.3756,0.3942,5.0,0.0857,0.0912
+Prosthetic,STGCN,0.2162,0.2597,20.1,0.0621,0.0744
+Prosthetic,CTRGCN,0.2321,0.2594,11.8,0.0667,0.074

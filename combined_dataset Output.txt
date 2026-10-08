@@ -55,6 +55,6 @@
   prosthetic Slower            806    102     89     997              81/10/9
 
 [output]  Saved -> /home/students/mmasabo1/summer26Research/combined_wattkg/exact_combined.pkl
-          36 participants, fields: ['frame_dir', 'label', 'img_shape', 'total_frames', 'num_person_raw', 'population', 'source', 'subject', 'modality', 'angle', 'moment', 'heart_rate', 'age', 'gender', 'height', 'weight']
+          36 participants, fields: ['frame_dir', 'label', 'img_shape', 'total_frames', 'num_person_raw', 'population', 'source', 'subject', 'modality', 'angle', 'moment', 'name', 'file_number', 'gait', 'age', 'gender', 'height', 'weight', 'watts', 'nearest_ee_watts', 'exact_windowing_energy_watts', 'windowing_drop_avg_energy_watts', 'heart_rate', 'exact_windowing_hr', 'windowing_drop_avg_hr', 'vo2_per_kg', 'vo2_stpd', 'vco2_stpd', 'rer', 'mets', 'energy_cal', 've_stpd']
 
 Done.

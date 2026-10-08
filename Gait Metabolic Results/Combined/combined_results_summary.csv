@@ -1,0 +1,7 @@
+Population,Model,Method,Units,BestEpoch,train_MAE,train_MSE,val_MAE,val_MSE,test_MAE,test_MSE,test_r,test_R2,test_MRE
+Combined (all),STGCN,Exact Windowing,W/kg,26,0.2944,0.1724,0.3188,0.1913,0.3289,0.1916,0.9539,0.9091,0.0805
+Combined (able-bodied),STGCN,Exact Windowing,W/kg,26,0.3387,0.2258,0.363,0.2447,0.364,0.2367,0.9543,0.9105,0.0836
+Combined (prosthetic),STGCN,Exact Windowing,W/kg,26,0.2146,0.0762,0.2408,0.0969,0.2597,0.1027,0.8824,0.7578,0.0744
+Combined (all),CTRGCN,Exact Windowing,W/kg,21,0.2659,0.1382,0.3205,0.198,0.3489,0.2227,0.9469,0.8943,0.0854
+Combined (able-bodied),CTRGCN,Exact Windowing,W/kg,21,0.307,0.1799,0.3739,0.261,0.3942,0.2813,0.9468,0.8936,0.0912
+Combined (prosthetic),CTRGCN,Exact Windowing,W/kg,21,0.1919,0.0631,0.2262,0.0869,0.2594,0.1071,0.8662,0.7473,0.074
