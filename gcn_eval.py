@@ -79,19 +79,29 @@ def metrics(p, y):
 
 
 # --------------------------------------------------------------------------- plotting
-def plot_train_vs_val(tr, vmse, vmae, best_ep, total_epochs, title, out_png):
-    """The full-range + zoomed two-panel train-vs-val curve used for every run in this project."""
+def plot_train_vs_val(tr, vmse, vmae, best_ep, total_epochs, title, out_png,
+                      final_ep=None, train_label='train MSE (mean batch loss)'):
+    """The full-range + zoomed two-panel train-vs-val curve used for every run in this project.
+    final_ep: also mark the final epoch (for best-vs-final reporting)."""
     epochs = sorted(set(tr) & set(vmse))
     fig, axes = plt.subplots(1, 2, figsize=(14, 5.5))
     later = [e for e in epochs if e >= 3]
     zoom_from = min(later) if later else epochs[0]   # short runs (<3 epochs): no zoom needed
     for ax, (lo, panel_title) in zip(axes, [(epochs[0], 'full range'), (zoom_from, f'zoomed, epoch {zoom_from}+')]):
         es = [e for e in epochs if e >= lo]
-        ax.plot(es, [tr[e] for e in es], 'o-', ms=3, label='train MSE (mean batch loss)')
+        ax.plot(es, [tr[e] for e in es], 'o-', ms=3, label=train_label)
         ax.plot(es, [vmse[e] for e in es], 's-', ms=3, label='val MSE')
         if best_ep >= lo:
             ax.axvline(best_ep, color='r', ls='--', lw=1,
                        label=f'best epoch {best_ep} (val MAE {vmae[best_ep]:.4f})')
+        if final_ep is not None and final_ep != best_ep and final_ep in vmae:
+            ax.axvline(final_ep, color='k', ls=':', lw=1.2,
+                       label=f'final epoch {final_ep} (val MAE {vmae[final_ep]:.4f})')
+        if lo == zoom_from and final_ep is not None:
+            # scale the zoom to the settled part of training, so one early val spike can't flatten it
+            settled = [v for d in (tr, vmse) for e, v in d.items() if e >= 10 and e in epochs]
+            if settled:
+                ax.set_ylim(0, 1.15 * max(settled))
         ax.set_xlabel('epoch'); ax.set_ylabel('MSE, (W/kg)^2'); ax.set_title(panel_title); ax.legend(fontsize=8)
     fig.suptitle(f'{title} — train vs val — FINAL ({len(epochs)}/{total_epochs} epochs)')
     plt.tight_layout()

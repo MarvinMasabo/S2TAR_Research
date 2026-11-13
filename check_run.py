@@ -1,9 +1,13 @@
 """Plain-language status report for pyskl training runs, read straight from their logs.
 
-    python check_run.py                    # the combined STGCN + CTR-GCN runs
-    python check_run.py CONFIG [CONFIG..]  # any runs, e.g. configs/stgcn/prosthetic_wattkg/merged_100ep.py
-    python check_run.py --last 15          # show more epochs in the table (default 10)
-    python check_run.py --plot             # also draw live_training_curves.png (needs pyskl_310)
+    python3 check_run.py                    # every run training right now (if none: the 11/8 experiments)
+    python3 check_run.py --brief            # just the one-line-per-run summary table
+    python3 check_run.py --set experiments  # the 8 LR 0.001 + dropout experiment runs
+    python3 check_run.py --set combined     # the combined STGCN + CTR-GCN runs
+    python3 check_run.py CONFIG [CONFIG..]  # any runs, e.g. configs/stgcn/prosthetic_wattkg/merged_100ep.py
+    python3 check_run.py --last 15          # show more epochs in the table (default 10)
+    python3 check_run.py --plot             # also draw live_training_curves.png (needs pyskl_310)
+    watch -n 60 python3 check_run.py --brief   # live view, refreshed every minute (Ctrl+C to quit)
 
 For each run: running / finished / stopped, progress and time left, the latest validation
 epochs, the best epoch so far, and a short diagnosis (improving, settling, overfitting, NaNs).
@@ -17,8 +21,13 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-DEFAULT = ['configs/stgcn/combined_wattkg/exact_100ep.py',
-           'configs/ctrgcn/combined_wattkg/exact_100ep.py']
+SETS = {
+    'combined': ['configs/stgcn/combined_wattkg/exact_100ep.py',
+                 'configs/ctrgcn/combined_wattkg/exact_100ep.py'],
+    'experiments': [f'configs/{m}/{d}_lr0001_do0{p}.py'
+                    for d in ('prosthetic_wattkg/merged_100ep', 'ablebody2_wattkg/exact_100ep')
+                    for m in ('stgcn', 'ctrgcn') for p in (5, 7)],
+}
 
 TS = r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})'
 TRAIN = re.compile(TS + r'.*Epoch \[(\d+)\]\[(\d+)/(\d+)\]\s+lr: ([0-9.e+-]+), eta: ([^,]+),.*loss_cls: ([0-9.naNinf]+)')
@@ -28,8 +37,31 @@ TEST_MAE = re.compile(r'mean_absolute_error: ([0-9.]+)')
 
 
 def config_value(path, key):
-    m = re.search(rf"^{key}\s*=\s*(.+)$", open(path).read(), re.M)
-    return m.group(1).strip().strip("'\"") if m else None
+    """A top-level `key = value` from a config, following its `_base_` files when the config
+    inherits the value instead of setting it (e.g. the experiment configs' total_epochs)."""
+    text = open(path).read()
+    m = re.search(rf"^{key}\s*=\s*(.+)$", text, re.M)
+    if m:
+        return m.group(1).strip().strip("'\"")
+    for base in re.findall(r"['\"]([^'\"]+\.py)['\"]", (re.search(r"^_base_\s*=\s*(.+)$", text, re.M) or [''])[0]):
+        val = config_value(os.path.normpath(os.path.join(os.path.dirname(path), base)), key)
+        if val is not None:
+            return val
+    return None
+
+
+def running_configs():
+    """Configs of the training runs going on right now, in launch order."""
+    try:
+        ps = subprocess.run(['ps', '-eo', 'args'], capture_output=True, text=True).stdout
+    except OSError:
+        return []
+    found = []
+    for line in ps.splitlines():
+        m = re.search(r'tools/train\.py\s+(?:--\S+\s+)*(configs/\S+\.py)', line)
+        if m and m.group(1) not in found:
+            found.append(m.group(1))
+    return found
 
 
 def parse_log(work_dir):
@@ -177,6 +209,50 @@ def report(config, n_last):
     print()
 
 
+def summary_table(configs):
+    """One line per run: status, progress, time left, best validation epoch so far."""
+    rows = []
+    for config in configs:
+        path = os.path.join(ROOT, config)
+        name = config.replace('configs/', '').replace('.py', '')
+        if not os.path.exists(path):
+            rows.append((name, 'no config', '', '', ''))
+            continue
+        work_dir = os.path.normpath(os.path.join(ROOT, config_value(path, 'work_dir')))
+        total = int(config_value(path, 'total_epochs') or 0)
+        logs, train, val, last, tests = parse_log(work_dir)
+        if not logs:
+            rows.append((name, 'not started', '', '', ''))
+            continue
+        running = is_running(config)
+        done_ep = max(val) if val else 0
+        status = 'running' if running else ('finished' if tests or done_ep >= total else 'STOPPED')
+        progress = f'{last["epoch"]}/{total}' if last else ''
+        if last and total:
+            progress += f' ({100 * ((last["epoch"] - 1) + last["it"] / last["n"]) / total:.0f}%)'
+        if running and last:
+            left = last['eta']
+            m = re.match(r'(?:(\d+) days?, )?(\d+):(\d+):(\d+)$', left)
+            if m:
+                d, h, mi, s = (int(x or 0) for x in m.groups())
+                done = dt.datetime.now() + dt.timedelta(days=d, hours=h, minutes=mi, seconds=s)
+                left += f'  (~{done:%a %H:%M})' if d else f'  (~{done:%H:%M})'
+        else:
+            left = '-'
+        best = ''
+        if val:
+            b = min(val, key=lambda e: val[e]['mae'])
+            best = f'{val[b]["mae"]:.4f} @ {b}'
+        rows.append((name, status, progress, left, best))
+    heads = ('run', 'status', 'epoch', 'time left (done at)', 'best val MAE @ epoch')
+    widths = [max(len(str(r[i])) for r in rows + [heads]) for i in range(5)]
+    print('  '.join(h.ljust(w) for h, w in zip(heads, widths)))
+    print('  '.join('-' * w for w in widths))
+    for r in rows:
+        print('  '.join(str(c).ljust(w) for c, w in zip(r, widths)))
+    print()
+
+
 def gpu_line():
     try:
         out = subprocess.run(['nvidia-smi', '--query-gpu=index,utilization.gpu,memory.used,memory.total',
@@ -191,13 +267,28 @@ def gpu_line():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('configs', nargs='*', default=DEFAULT)
+    ap.add_argument('configs', nargs='*')
+    ap.add_argument('--set', choices=sorted(SETS), help='a named group of runs instead of listing configs')
+    ap.add_argument('--brief', action='store_true', help='only the one-line-per-run summary table')
     ap.add_argument('--last', type=int, default=10, help='validated epochs to show (default 10)')
     ap.add_argument('--plot', action='store_true', help='also draw live_training_curves.png')
     args = ap.parse_args()
     print(f'Run check at {dt.datetime.now():%Y-%m-%d %H:%M}\n')
     gpu_line()
-    for c in args.configs:
+    if args.configs:
+        configs = args.configs
+    elif args.set:
+        configs = SETS[args.set]
+    else:
+        configs = running_configs()
+        if not configs:
+            print('Nothing is training right now - showing the 11/8 experiment runs.\n')
+            configs = SETS['experiments']
+    args.configs = configs
+    summary_table(configs)
+    if args.brief:
+        return
+    for c in configs:
         report(c, args.last)
     if args.plot:
         py = os.path.expanduser('~/miniconda3/envs/pyskl_310/bin/python')
