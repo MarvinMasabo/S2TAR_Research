@@ -17,11 +17,14 @@ if not hasattr(np, '_core'):
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 ROOT = Path('/home/students/mmasabo1/summer26Research')
-SIEM_DIR = Path('/shared/research_rj/Preprocessing_Code/Proshetic2')
+SIEM_DIR = Path('/shared/research_rj/S2TAR Research/Proshetic2')
 KEYPOINT_PKLS = {'TAMUSA': SIEM_DIR / 'Full_Pros_TAMUSA.pkl', 'Thailand': SIEM_DIR / 'Full_Pros_Thailand.pkl'}
 LABEL_DIRS = {'TAMUSA': SIEM_DIR / 'Labels/A&M/CSV', 'Thailand': SIEM_DIR / 'Labels/Thailand/CSV'}
 TAMUSA_STEMS = ROOT / 'final_demographics.pkl'   # TAMUSA video code -> speed (codes like '1_2' aren't speeds)
 OUTPUT_PATH = ROOT / 'prosthetic_wattkg' / 'exact_merged.pkl'
+# one file per site as well (the PRO_A&M / PRO_THAI files next to ABLE2), each keeping its part of the split
+SITE_OUTPUTS = {'TAMUSA': ROOT / 'prosthetic_wattkg' / 'pro_am_exact_windowing_wkg.pkl',
+                'Thailand': ROOT / 'prosthetic_wattkg' / 'pro_thai_exact_windowing_wkg.pkl'}
 
 WINDOW = 10
 VAL_RATIO = TEST_RATIO = 0.1
@@ -71,12 +74,13 @@ ENERGY_COLUMNS = {
     'Energy (cal)': 'energy_cal',      # empty / absent in the prosthetic files -> NaN
     'VE STPD (L/min)': 've_stpd',      # prosthetic files only have VE BTPS (A&M) -> NaN, not relabelled
 }
-# AbleBody2_full.pkl's per-clip fields, in its order; our bookkeeping fields follow them
+# the shared ABLE2 file's per-clip fields (ablebody2_exact_windowing_wkg.pkl), in its order; our bookkeeping
+# fields follow them. metabolic_power = Watts / weight (W/kg with no windowing), as in that file.
 FIELD_ORDER = ['frame_dir', 'label', 'img_shape', 'total_frames', 'num_person_raw', 'keypoint', 'keypoint_score',
                'name', 'file_number', 'gait', 'modality', 'age', 'gender', 'height', 'weight', 'watts', 'energy_cal',
                'nearest_ee_watts', 'exact_windowing_energy_watts', 'windowing_drop_avg_energy_watts', 'heart_rate',
                'exact_windowing_hr', 'windowing_drop_avg_hr', 'vo2_per_kg', 'rer', 've_stpd', 'mets', 'vo2_stpd',
-               'vco2_stpd']
+               'vco2_stpd', 'metabolic_power']
 EXTRA_FIELDS = ['source', 'subject', 'angle', 'moment']
 WINDOWING = ('Exact Windowing Energy (Watts)', 'Nearest EE (Watts)', 'Windowing Drop Avg Energy (Watts)')
 
@@ -112,6 +116,7 @@ def build_label_lookup():
                     'weight': w,
                 }
                 entry.update({field: num(r.get(col)) for col, field in ENERGY_COLUMNS.items()})  # absent column -> NaN
+                entry['metabolic_power'] = entry['watts'] / w
                 lookup[(site, who, str(r['Modality']).strip(), start)] = entry
     n_exact = sum(np.isfinite(v['label']) for v in lookup.values())
     print(f'[labels]  Loaded {n_files} CSV files → {n_rows} rows')
@@ -196,15 +201,22 @@ def stratified_split(annotations):
     return split
 
 
-def save_pkl(split, annotations):
-    annotations = [{k: a[k] for k in FIELD_ORDER + EXTRA_FIELDS} for a in annotations]  # AbleBody2 order
-    out = dict(split=split, annotations=annotations, **split)
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUTPUT_PATH, 'wb') as f:
-        pickle.dump(out, f)
-    print(f'\n[output]  Saved → {OUTPUT_PATH}')
+def write(path, split, annotations):
+    with open(path, 'wb') as f:
+        pickle.dump(dict(split=split, annotations=annotations, **split), f)
+    print(f'\n[output]  Saved → {path}')
     print(f'          annotations   : {len(annotations)}')
     print(f"          train/val/test: {len(split['train'])} / {len(split['val'])} / {len(split['test'])}")
+
+
+def save_pkl(split, annotations):
+    annotations = [{k: a[k] for k in FIELD_ORDER + EXTRA_FIELDS} for a in annotations]  # ABLE2 order
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    write(OUTPUT_PATH, split, annotations)
+    for site, path in SITE_OUTPUTS.items():
+        site_ann = [a for a in annotations if a['source'] == site]
+        names = {a['frame_dir'] for a in site_ann}
+        write(path, {s: [fd for fd in v if fd in names] for s, v in split.items()}, site_ann)
 
 
 def verify_pkl():
@@ -229,8 +241,15 @@ def verify_pkl():
         print(f"          exact / nearest / drop-avg (W): {sample['exact_windowing_energy_watts']} / "
               f"{sample['nearest_ee_watts']} / {sample['windowing_drop_avg_energy_watts']}")
         print(f"          HR nearest / exact (bpm)   : {sample['heart_rate']} / {sample['exact_windowing_hr']}")
+        print(f"          metabolic_power (W/kg)     : {sample['metabolic_power']:.4f}")
     fields = [k for k in pkl['annotations'][0] if k not in ('keypoint', 'keypoint_score')]
     print(f'\n[verify]  Fields per clip ({len(fields)}): {fields}')
+    for site, path in SITE_OUTPUTS.items():
+        part = load(path)
+        names = [a['frame_dir'] for a in part['annotations']]
+        same = all(sp[fd] == s for s, v in part['split'].items() for fd in v)
+        print(f"[verify]  {path.name}: {len(names)} clips, all {site}: "
+              f"{all(a['source'] == site for a in part['annotations'])}, same split as merged file: {same}")
 
 
 def main():

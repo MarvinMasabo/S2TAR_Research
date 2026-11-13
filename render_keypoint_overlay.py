@@ -18,8 +18,8 @@ if not hasattr(np, '_core'):
     sys.modules.setdefault('numpy._core.multiarray', np.core.multiarray)
 
 CLIPS = '/shared/research_rj/clipsV1Trimmed'
-PKLS = ['/shared/research_rj/Preprocessing_Code/Proshetic2/Full_Pros_TAMUSA.pkl',
-        '/shared/research_rj/Preprocessing_Code/Proshetic2/Full_Pros_Thailand.pkl']
+PKLS = ['/shared/research_rj/S2TAR Research/Proshetic2/Full_Pros_TAMUSA.pkl',
+        '/shared/research_rj/S2TAR Research/Proshetic2/Full_Pros_Thailand.pkl']
 FFMPEG = os.path.expanduser('~/miniconda3/bin/ffmpeg')
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 

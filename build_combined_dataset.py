@@ -9,7 +9,7 @@ populations.
   label   = unchanged: Exact Windowing energy / body weight (W/kg) in both inputs.
   fields  = one shared set for every clip (training fields + population, source, subject, speed,
             angle, moment, demographics, all three windowing methods with their heart rates, and the
-            gas measurements), named as in AbleBody2_full.pkl.
+            gas measurements, metabolic_power = Watts / weight), named as in the shared ABLE2 file.
 """
 import pickle
 import re
@@ -27,8 +27,8 @@ if not hasattr(np, '_core'):
 ROOT = Path('/home/students/mmasabo1/summer26Research')
 ABLE_PKL = ROOT / 'ablebody2_wattkg' / 'exact.pkl'
 PROS_PKL = ROOT / 'prosthetic_wattkg' / 'exact_merged.pkl'
-ABLE_TRIM_SHEETS = [Path('/shared/research_rj/Preprocessing_Code/AbleBody2/util/labels.csv'),
-                    Path('/shared/research_rj/Preprocessing_Code/AbleBody2/util/labels-2.csv')]
+ABLE_TRIM_SHEETS = [Path('/shared/research_rj/S2TAR Research/AbleBody2/util/labels.csv'),
+                    Path('/shared/research_rj/S2TAR Research/AbleBody2/util/labels-2.csv')]
 OUTPUT_PATH = ROOT / 'combined_wattkg' / 'exact_combined.pkl'
 
 SPLITS = ('train', 'val', 'test')
@@ -37,13 +37,13 @@ TRAIN_FIELDS = ('frame_dir', 'label', 'img_shape', 'total_frames', 'num_person_r
 SHARED_FIELDS = ('name', 'file_number', 'gait', 'age', 'gender', 'height', 'weight',
                  'watts', 'nearest_ee_watts', 'exact_windowing_energy_watts', 'windowing_drop_avg_energy_watts',
                  'heart_rate', 'exact_windowing_hr', 'windowing_drop_avg_hr',
-                 'vo2_per_kg', 'vo2_stpd', 'vco2_stpd', 'rer', 'mets', 'energy_cal', 've_stpd')
-# AbleBody2_full.pkl's per-clip fields in its order, then the bookkeeping fields
+                 'vo2_per_kg', 'vo2_stpd', 'vco2_stpd', 'rer', 'mets', 'energy_cal', 've_stpd', 'metabolic_power')
+# the shared ABLE2 file's per-clip fields in its order, then the bookkeeping fields
 FIELD_ORDER = ['frame_dir', 'label', 'img_shape', 'total_frames', 'num_person_raw', 'keypoint', 'keypoint_score',
                'name', 'file_number', 'gait', 'modality', 'age', 'gender', 'height', 'weight', 'watts', 'energy_cal',
                'nearest_ee_watts', 'exact_windowing_energy_watts', 'windowing_drop_avg_energy_watts', 'heart_rate',
                'exact_windowing_hr', 'windowing_drop_avg_hr', 'vo2_per_kg', 'rer', 've_stpd', 'mets', 'vo2_stpd',
-               'vco2_stpd', 'population', 'source', 'subject', 'angle', 'moment']
+               'vco2_stpd', 'metabolic_power', 'population', 'source', 'subject', 'angle', 'moment']
 
 
 def load(path):
@@ -90,6 +90,7 @@ def able_clips():
         c.update(population='able-bodied', source='AbleBody2', subject=a['name'], modality=a['modality'],
                  angle=angle, moment=f"AbleBody2|{a['name']}|{a['modality']}|{start:04d}",
                  **{f: a.get(f) for f in SHARED_FIELDS})
+        c['metabolic_power'] = a['watts'] / a['weight']   # not in exact.pkl; same as the ABLE2 file's
         out.append(c)
     print(f'[able]    {len(out)} clips from {ABLE_PKL.name}; camera angle from {dict(sources)}')
     return out, d['split']
