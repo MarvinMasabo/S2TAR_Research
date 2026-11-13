@@ -5,6 +5,7 @@
 /ablebody2_wattkg/
 /prosthetic_wattkg/
 /combined_wattkg/
+/population_cls/
 /data/
 
 # Training outputs — checkpoints (~16GB), logs, tensorboard etc.
@@ -21,11 +22,13 @@
 !/configs/stgcn/ablebody2_wattkg/
 !/configs/stgcn/prosthetic_wattkg/
 !/configs/stgcn/combined_wattkg/
+!/configs/stgcn/population_cls/
 !/configs/stgcn/ablebody2_exact/
 /configs/ctrgcn/*
 !/configs/ctrgcn/ablebody2_wattkg/
 !/configs/ctrgcn/prosthetic_wattkg/
 !/configs/ctrgcn/combined_wattkg/
+!/configs/ctrgcn/population_cls/
 /configs/posec3d/*
 !/configs/posec3d/ablebody2_wattkg/
 !/configs/posec3d/ablebody2_demo/
@@ -71,3 +74,6 @@ venv/
 
 # OS/editor cruft
 .DS_Store
+
+# Data-check reports list participant names: keep them off GitHub
+/Gait Metabolic Results/Data Checks/

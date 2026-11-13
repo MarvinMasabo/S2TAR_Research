@@ -1,0 +1,3 @@
+Task,Model,BestEpoch,train_acc,val_acc,val_balanced_acc,test_acc,test_balanced_acc,test_recall_able,test_recall_prosthetic,test_F1_prosthetic,test_AUC
+Able-bodied vs prosthetic,STGCN,3,0.9996,1.0,1.0,0.9989,0.9983,1.0,0.9966,0.9983,1.0
+Able-bodied vs prosthetic,CTRGCN,1,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
